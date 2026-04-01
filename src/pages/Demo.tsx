@@ -40,20 +40,37 @@ function buildIframeSrc(config: SDKConfig): string {
   return `${SDK_BASE_URL}?${params.toString()}`;
 }
 
-const eventLog: Array<{ time: string; event: string; detail?: string }> = [];
+type EventType = 'info' | 'send' | 'receive' | 'error' | 'diagnostic';
+const eventLog: Array<{ time: string; title: string; detail?: string; type: EventType }> = [];
 
 export default function Demo() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const loadTimeoutRef = useRef<number>(null);
   const [config] = useState<SDKConfig | null>(loadConfig);
   const [status, setStatus] = useState<DemoStatus>('idle');
   const [events, setEvents] = useState(eventLog);
   const [showCustomUI, setShowCustomUI] = useState(false);
 
-  const addEvent = (event: string, detail?: string) => {
-    const entry = { time: new Date().toLocaleTimeString(), event, detail };
+  const addEvent = (title: string, detail?: string, type: EventType = 'info') => {
+    const entry = { time: new Date().toLocaleTimeString(), title, detail, type };
     eventLog.push(entry);
     setEvents([...eventLog]);
   };
+
+  const showDiagnosticInfo = (reason: string) => {
+    addEvent(
+      'DIAGNOSTIC LOG',
+      `[PLEASE COPY THIS AND SHARE WITH SUPPORT]\n----------------------------------------\nReason: ${reason}\nTime: ${new Date().toISOString()}\nTarget: ${SDK_BASE_URL}\nAccount: ${config?.accountId}\nPattern: ${config?.questionPattern}\nEmail: ${config?.email}`,
+      'diagnostic'
+    );
+  };
+
+  // Clean up load timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loadTimeoutRef.current) window.clearTimeout(loadTimeoutRef.current);
+    };
+  }, []);
 
   // Listen for postMessage events from the SDK iframe
   useEffect(() => {
@@ -67,23 +84,23 @@ export default function Demo() {
         // Detailed logging for all incoming events
         if (data && typeof data === 'object') {
           if (data.type === 'screenChanged') {
-            addEvent('screenChanged', `value: "${data.value}"`);
+            addEvent('screenChanged', `value: "${data.value}"`, 'receive');
             if (data.value === 'dashboard') {
               setShowCustomUI(true);
               setStatus('completed');
-              addEvent('Assessment complete!', 'Displaying custom results UI');
+              addEvent('Assessment complete!', 'Displaying custom results UI', 'info');
             }
           } else if (data.type === 'error' || data.error) {
-            addEvent('SDK Error', JSON.stringify(data, null, 2));
+            addEvent('SDK Error', JSON.stringify(data, null, 2), 'error');
             setStatus('error');
           } else {
-            addEvent(`SDK Event: ${data.type || 'message'}`, JSON.stringify(data, null, 2));
+            addEvent(`SDK Event: ${data.type || 'message'}`, JSON.stringify(data, null, 2), 'receive');
           }
         } else {
-          addEvent('Raw Message', String(e.data));
+          addEvent('Raw Message', String(e.data), 'receive');
         }
       } catch {
-        addEvent('Non-JSON Message', String(e.data));
+        addEvent('Non-JSON Message', String(e.data), 'error');
       }
     };
     window.addEventListener('message', handler);
@@ -93,19 +110,24 @@ export default function Demo() {
   const handleIframeLoad = () => {
     if (!config || !iframeRef.current) return;
     setStatus('ready');
-    addEvent('iframe loaded', 'Sending encrypted subscription key via postMessage');
+    addEvent('Iframe Loaded', 'The <iframe> document finished loading.', 'info');
     
-    addEvent('Pre-encryption Data', `API Key (Subscription): ${config.subscriptionKey}\n\nPublic Key (Encryption):\n${config.encryptionKey}`);
+    addEvent('Pre-encryption Check', `API Key (Subscription): ${config.subscriptionKey}\n\nPublic Key (Encryption):\n${config.encryptionKey}`, 'info');
+
+    if (loadTimeoutRef.current) {
+      window.clearTimeout(loadTimeoutRef.current);
+    }
 
     const encryptedKey = encryptKey(config.subscriptionKey, config.encryptionKey);
     if (!encryptedKey) {
-      addEvent('Encryption failed', 'Check your encryption key format');
+      addEvent('Encryption Failed', 'Check your encryption key format', 'error');
+      showDiagnosticInfo('RSA Encryption returned false');
       setStatus('error');
       return;
     }
 
     iframeRef.current.contentWindow?.postMessage(encryptedKey, SDK_BASE_URL);
-    addEvent('postMessage sent', `Delivered Encrypted Payload:\n${encryptedKey}`);
+    addEvent('postMessage Sent', `Encrypted Payload Sent to iframe:\n${encryptedKey}`, 'send');
   };
 
   const handleLaunch = () => {
@@ -113,15 +135,23 @@ export default function Demo() {
     setShowCustomUI(false);
     eventLog.length = 0;
     setEvents([]);
-    addEvent('Launching SDK', `Config details:
+    addEvent('Launch Initialized', `Params:
 Email: ${config?.email}
 Account: ${config?.accountId}
 Pattern: ${config?.questionPattern}
-SelfRegID: ${config?.selfRegistrationId}`);
-    addEvent('Iframe Info', `Targeting URL: ${SDK_BASE_URL}`);
+SelfRegID: ${config?.selfRegistrationId}`, 'info');
+    addEvent('Iframe SRC', `Target URL: ${SDK_BASE_URL}`, 'info');
+
+    // Set a timeout to catch if the iframe never fires the onLoad event
+    loadTimeoutRef.current = window.setTimeout(() => {
+      setStatus('error');
+      addEvent('Timeout', 'The SDK iframe took too long to load or was blocked by the browser.', 'error');
+      showDiagnosticInfo('Iframe load timeout (10s)');
+    }, 10000);
   };
 
   const handleReset = () => {
+    if (loadTimeoutRef.current) window.clearTimeout(loadTimeoutRef.current);
     setStatus('idle');
     setShowCustomUI(false);
     eventLog.length = 0;
@@ -140,7 +170,7 @@ SelfRegID: ${config?.selfRegistrationId}`);
             You need to configure your DNA Behavior SDK credentials before launching the demo.
           </p>
           <Link
-            to="/setup"
+            to="/"
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
           >
             <Settings className="w-4 h-4" />
@@ -189,7 +219,7 @@ SelfRegID: ${config?.selfRegistrationId}`);
 
           <div className="flex items-center gap-2">
             <Link
-              to="/setup"
+              to="/"
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-300 hover:text-white border border-gray-600 rounded-lg hover:border-gray-400 transition-colors"
             >
               <Settings className="w-3.5 h-3.5" />
@@ -306,27 +336,63 @@ SelfRegID: ${config?.selfRegistrationId}`);
             <h3 className="text-sm font-semibold text-white">SDK Event Log</h3>
             <p className="text-xs text-gray-500 mt-0.5">Real-time postMessage events</p>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
             {events.length === 0 ? (
-              <div className="text-xs text-gray-600 text-center pt-8">
-                Events will appear here once the SDK is launched
+              <div className="text-xs text-gray-500 text-center pt-8">
+                Click Launch to start tracing events
               </div>
             ) : (
-              events.map((e, i) => (
-                <div key={i} className="bg-gray-900 rounded-lg p-3 text-xs border border-gray-800">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={`font-mono font-medium ${e.event.includes('Error') ? 'text-red-400' : 'text-primary-400'}`}>
-                      {e.event}
-                    </span>
-                    <span className="text-gray-600 text-[10px]">{e.time}</span>
-                  </div>
-                  {e.detail && (
-                    <div className="text-gray-400 wrap-break-word whitespace-pre-wrap font-mono text-[10px] bg-gray-950/50 p-2 rounded overflow-x-auto">
-                      {e.detail}
+              events.map((e, i) => {
+                const isSend = e.type === 'send';
+                const isReceive = e.type === 'receive';
+                const isError = e.type === 'error';
+                const isDiagnostic = e.type === 'diagnostic';
+
+                const badgeColor = isSend
+                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                  : isReceive
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : isError
+                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                  : isDiagnostic
+                  ? 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                  : 'bg-gray-700/50 text-gray-400 border-gray-600/50';
+
+                const badgeText = isSend
+                  ? 'SENT ↗'
+                  : isReceive
+                  ? 'RECV ↙'
+                  : isError
+                  ? 'ERROR ✖'
+                  : isDiagnostic
+                  ? 'DIAG ⚡'
+                  : 'INFO i';
+
+                const titleColor = isError || isDiagnostic ? 'text-red-400' : 'text-gray-200';
+                const borderColor = isDiagnostic ? 'border-orange-500/50 shadow-[0_0_15px_-3px_rgba(249,115,22,0.2)]' : isError ? 'border-red-500/30' : 'border-gray-800';
+                const bgClass = isDiagnostic ? 'bg-orange-950/20' : isError ? 'bg-red-950/20' : 'bg-gray-900';
+
+                return (
+                  <div key={i} className={`rounded-xl p-3 text-xs border ${borderColor} ${bgClass}`}>
+                    <div className="flex items-start justify-between mb-2 gap-3">
+                      <div className="flex items-center gap-2 flex-wrap flex-1">
+                        <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded border ${badgeColor} font-bold tracking-wider shrink-0`}>
+                          {badgeText}
+                        </span>
+                        <span className={`font-mono font-medium ${titleColor} break-all`}>
+                          {e.title}
+                        </span>
+                      </div>
+                      <span className="text-gray-600 text-[10px] shrink-0 pt-0.5">{e.time}</span>
                     </div>
-                  )}
-                </div>
-              ))
+                    {e.detail && (
+                      <div className={`wrap-break-word whitespace-pre-wrap font-mono text-[10px] p-2.5 rounded overflow-x-auto ${isDiagnostic ? 'bg-orange-950/40 text-orange-200/90 font-bold border border-orange-500/20' : 'bg-gray-950/60 text-gray-400'}`}>
+                        {e.detail}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
 

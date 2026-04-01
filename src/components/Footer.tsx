@@ -9,7 +9,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-primary-500 to-primary-500 flex items-center justify-center">
                 <Dna className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-white text-lg">DNA Behavior</span>
@@ -23,11 +23,9 @@ export default function Footer() {
           <div>
             <h3 className="text-white text-sm font-semibold mb-3 uppercase tracking-wider">Demo Pages</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/" className="hover:text-white transition-colors">Overview</Link></li>
-              <li><Link to="/setup" className="hover:text-white transition-colors">Setup Guide</Link></li>
-              <li><Link to="/demo" className="hover:text-white transition-colors">Live Demo</Link></li>
-              <li><Link to="/code" className="hover:text-white transition-colors">Code Examples</Link></li>
-              <li><Link to="/webhooks" className="hover:text-white transition-colors">Webhooks</Link></li>
+              <li><Link to="/" className="hover:text-white transition-colors">Setup Guide</Link></li>
+              <li><Link to="/demo" className="hover:text-white transition-colors">Live Sandbox</Link></li>
+              <li><Link to="/webhooks" className="hover:text-white transition-colors">Webhook Reference</Link></li>
             </ul>
           </div>
 

@@ -3,11 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ArrowRight } from 'lucide-react';
 
 const navLinks = [
-  { label: 'Overview', to: '/' },
-  { label: 'Setup Guide', to: '/setup' },
-  { label: 'Live Demo', to: '/demo' },
-  { label: 'Code Examples', to: '/code' },
-  { label: 'Webhooks', to: '/webhooks' },
+  { label: 'Setup Guide', to: '/' },
+  { label: 'Live Sandbox', to: '/demo' },
+  { label: 'Webhook Reference', to: '/webhooks' },
 ];
 
 export default function Header() {
@@ -67,14 +65,6 @@ export default function Header() {
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-5">
-            <a
-              href="https://dnabehavior.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-[2px] after:bg-primary-500 after:transition-all hover:after:w-full"
-            >
-              Main Site
-            </a>
             <Link
               to="/demo"
               className="group relative inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 bg-linear-to-r from-primary-600 to-primary-500 rounded-xl hover:from-primary-500 hover:to-primary-400 shadow-[0_4px_20px_-4px_rgba(51,153,102,0.4)] hover:shadow-[0_8px_25px_-5px_rgba(51,153,102,0.5)] hover:-translate-y-0.5 overflow-hidden"

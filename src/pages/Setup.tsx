@@ -35,40 +35,16 @@ function loadConfig(): SDKConfig {
   return defaultConfig;
 }
 
-const encryptionSnippet = `import JSEncrypt from 'jsencrypt';
 
-// Your public encryption key from DNA Behavior
-const publicKey = process.env.DNA_ENCRYPTION_KEY;
-
-export function encryptSubscriptionKey(subscriptionKey: string): string {
-  const encryptor = new JSEncrypt();
-  encryptor.setPublicKey(publicKey);
-  const encrypted = encryptor.encrypt(subscriptionKey);
-  if (!encrypted) throw new Error('Encryption failed');
-  return encrypted;
-}`;
-
-const envFileSnippet = `# .env (NEVER commit this file)
-DNA_ACCOUNT_ID=your_account_id
-DNA_SELF_REGISTRATION_ID=your_self_reg_id
-DNA_ENCRYPTION_KEY=your_public_key_from_dna
-DNA_SUBSCRIPTION_KEY=your_subscription_key`;
 
 export default function Setup() {
   const [config, setConfig] = useState<SDKConfig>(loadConfig);
   const [showEncryptionKey, setShowEncryptionKey] = useState(false);
   const [showSubscriptionKey, setShowSubscriptionKey] = useState(false);
-  const [saved, setSaved] = useState(false);
   const navigate = useNavigate();
 
   const update = (field: keyof SDKConfig, value: string) =>
     setConfig((prev) => ({ ...prev, [field]: value }));
-
-  const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
 
   const handleSaveAndDemo = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
@@ -87,14 +63,36 @@ export default function Setup() {
   const fieldClass =
     'w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-shadow bg-white';
 
+  const dynamicEnvSnippet = `# .env (NEVER commit this file)
+DNA_ACCOUNT_ID=${config.accountId || 'your_account_id'}
+DNA_SELF_REGISTRATION_ID=${config.selfRegistrationId || 'your_self_reg_id'}
+DNA_ENCRYPTION_KEY="${config.encryptionKey || 'your_public_key_from_dna'}"
+DNA_SUBSCRIPTION_KEY=${config.subscriptionKey || 'your_subscription_key'}`;
+
+  const dynamicEncryptionSnippet = `import JSEncrypt from 'jsencrypt';
+
+// Your public encryption key from DNA Behavior
+const publicKey = process.env.DNA_ENCRYPTION_KEY;
+
+export function encryptSubscriptionKey(subscriptionKey: string): string {
+  const encryptor = new JSEncrypt();
+  encryptor.setPublicKey(publicKey);
+  const encrypted = encryptor.encrypt(subscriptionKey);
+  if (!encrypted) throw new Error('Encryption failed');
+  return encrypted;
+}
+
+// Example URL Construction:
+// const url = \`https://embeddiscovery.dnabehavior.com/?accountId=\${process.env.DNA_ACCOUNT_ID}&selfRegistrationId=\${process.env.DNA_SELF_REGISTRATION_ID}&questionPattern=${config.questionPattern}&firstname=${config.firstname || 'Jane'}&lastname=${config.lastname || 'Doe'}&email=${config.email || 'jane@example.com'}\`;`;
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Page header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">SDK Setup</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">SDK Setup Guide</h1>
           <p className="text-gray-500 text-lg">
-            Configure your credentials once — they are stored locally in your browser and used to power the live demo.
+            Configure your credentials below. <strong>Scroll down to the bottom of the page</strong> as you type to see the implementation code blocks automatically update with your live data.
           </p>
         </div>
 
@@ -306,19 +304,6 @@ export default function Setup() {
             {/* Actions */}
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={handleSave}
-                className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                {saved ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-primary-500" />
-                    Saved!
-                  </>
-                ) : (
-                  'Save Configuration'
-                )}
-              </button>
-              <button
                 onClick={handleSaveAndDemo}
                 disabled={!isComplete}
                 className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -381,11 +366,11 @@ export default function Setup() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-700 mb-3">Encryption utility</p>
-              <CodeBlock code={encryptionSnippet} language="typescript" filename="utils/encryption.ts" />
+              <CodeBlock code={dynamicEncryptionSnippet} language="typescript" filename="utils/encryption.ts" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700 mb-3">Environment variables (never commit!)</p>
-              <CodeBlock code={envFileSnippet} language="bash" filename=".env" />
+              <CodeBlock code={dynamicEnvSnippet} language="bash" filename=".env" />
             </div>
           </div>
         </div>
