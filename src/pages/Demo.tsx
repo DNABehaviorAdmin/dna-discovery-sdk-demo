@@ -58,19 +58,32 @@ export default function Demo() {
   // Listen for postMessage events from the SDK iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.origin !== SDK_BASE_URL.replace(/\/$/, '')) return;
+      if (e.origin !== SDK_BASE_URL.replace(/\/$/, '') && !e.origin.includes('localhost') && !e.origin.includes('127.0.0.1')) {
+         return; // Ignore completely unknown origins
+      }
       try {
         const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (data?.type === 'screenChanged') {
-          addEvent('screenChanged', `value: "${data.value}"`);
-          if (data.value === 'dashboard') {
-            setShowCustomUI(true);
-            setStatus('completed');
-            addEvent('Assessment complete!', 'Displaying custom results UI');
+        
+        // Detailed logging for all incoming events
+        if (data && typeof data === 'object') {
+          if (data.type === 'screenChanged') {
+            addEvent('screenChanged', `value: "${data.value}"`);
+            if (data.value === 'dashboard') {
+              setShowCustomUI(true);
+              setStatus('completed');
+              addEvent('Assessment complete!', 'Displaying custom results UI');
+            }
+          } else if (data.type === 'error' || data.error) {
+            addEvent('SDK Error', JSON.stringify(data, null, 2));
+            setStatus('error');
+          } else {
+            addEvent(`SDK Event: ${data.type || 'message'}`, JSON.stringify(data, null, 2));
           }
+        } else {
+          addEvent('Raw Message', String(e.data));
         }
       } catch {
-        // not a structured message
+        addEvent('Non-JSON Message', String(e.data));
       }
     };
     window.addEventListener('message', handler);
@@ -81,6 +94,8 @@ export default function Demo() {
     if (!config || !iframeRef.current) return;
     setStatus('ready');
     addEvent('iframe loaded', 'Sending encrypted subscription key via postMessage');
+    
+    addEvent('Pre-encryption Data', `API Key (Subscription): ${config.subscriptionKey}\n\nPublic Key (Encryption):\n${config.encryptionKey}`);
 
     const encryptedKey = encryptKey(config.subscriptionKey, config.encryptionKey);
     if (!encryptedKey) {
@@ -90,7 +105,7 @@ export default function Demo() {
     }
 
     iframeRef.current.contentWindow?.postMessage(encryptedKey, SDK_BASE_URL);
-    addEvent('postMessage sent', 'Encrypted key delivered to SDK');
+    addEvent('postMessage sent', `Delivered Encrypted Payload:\n${encryptedKey}`);
   };
 
   const handleLaunch = () => {
@@ -98,7 +113,12 @@ export default function Demo() {
     setShowCustomUI(false);
     eventLog.length = 0;
     setEvents([]);
-    addEvent('Launching SDK', `questionPattern: ${config?.questionPattern}`);
+    addEvent('Launching SDK', `Config details:
+Email: ${config?.email}
+Account: ${config?.accountId}
+Pattern: ${config?.questionPattern}
+SelfRegID: ${config?.selfRegistrationId}`);
+    addEvent('Iframe Info', `Targeting URL: ${SDK_BASE_URL}`);
   };
 
   const handleReset = () => {
@@ -194,7 +214,7 @@ export default function Demo() {
         <div className="flex-1 relative bg-gray-950 flex items-center justify-center">
           {status === 'idle' && (
             <div className="text-center px-8 py-16 max-w-lg">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-600 to-primary-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-primary-900/50">
+              <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-primary-600 to-primary-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-primary-900/50">
                 <ExternalLink className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-4">Live SDK Demo</h2>
@@ -229,7 +249,7 @@ export default function Demo() {
 
           {/* Custom results UI shown after completion */}
           {showCustomUI && (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-950 to-primary-950 p-8">
+            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-primary-950 to-primary-950 p-8">
               <div className="max-w-lg w-full text-center">
                 <div className="w-20 h-20 rounded-full bg-primary-500 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-primary-900/50">
                   <CheckCircle2 className="w-10 h-10 text-white" />
@@ -293,12 +313,18 @@ export default function Demo() {
               </div>
             ) : (
               events.map((e, i) => (
-                <div key={i} className="bg-gray-900 rounded-lg p-3 text-xs">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-primary-400">{e.event}</span>
-                    <span className="text-gray-600">{e.time}</span>
+                <div key={i} className="bg-gray-900 rounded-lg p-3 text-xs border border-gray-800">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={`font-mono font-medium ${e.event.includes('Error') ? 'text-red-400' : 'text-primary-400'}`}>
+                      {e.event}
+                    </span>
+                    <span className="text-gray-600 text-[10px]">{e.time}</span>
                   </div>
-                  {e.detail && <span className="text-gray-400">{e.detail}</span>}
+                  {e.detail && (
+                    <div className="text-gray-400 wrap-break-word whitespace-pre-wrap font-mono text-[10px] bg-gray-950/50 p-2 rounded overflow-x-auto">
+                      {e.detail}
+                    </div>
+                  )}
                 </div>
               ))
             )}

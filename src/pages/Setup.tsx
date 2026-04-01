@@ -56,7 +56,8 @@ DNA_SUBSCRIPTION_KEY=your_subscription_key`;
 
 export default function Setup() {
   const [config, setConfig] = useState<SDKConfig>(loadConfig);
-  const [showKey, setShowKey] = useState(false);
+  const [showEncryptionKey, setShowEncryptionKey] = useState(false);
+  const [showSubscriptionKey, setShowSubscriptionKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const navigate = useNavigate();
 
@@ -162,13 +163,23 @@ export default function Setup() {
                     Encryption Key (Public Key)
                     <span className="ml-1 text-red-400">*</span>
                   </label>
-                  <textarea
-                    rows={4}
-                    placeholder="-----BEGIN PUBLIC KEY-----&#10;MIIBIjANBgkqhkiG9w0B...&#10;-----END PUBLIC KEY-----"
-                    className={`${fieldClass} font-mono text-xs resize-none`}
-                    value={config.encryptionKey}
-                    onChange={(e) => update('encryptionKey', e.target.value)}
-                  />
+                  <div className="relative">
+                    <textarea
+                      rows={4}
+                      style={{ WebkitTextSecurity: showEncryptionKey ? 'none' : 'disc' } as any}
+                      placeholder="-----BEGIN PUBLIC KEY-----&#10;MIIBIjANBgkqhkiG9w0B...&#10;-----END PUBLIC KEY-----"
+                      className={`${fieldClass} font-mono text-xs resize-none pr-10`}
+                      value={config.encryptionKey}
+                      onChange={(e) => update('encryptionKey', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEncryptionKey(!showEncryptionKey)}
+                      className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+                    >
+                      {showEncryptionKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-400 mt-1">RSA public key provided by DNA Behavior via support ticket.</p>
                 </div>
 
@@ -179,7 +190,7 @@ export default function Setup() {
                   </label>
                   <div className="relative">
                     <input
-                      type={showKey ? 'text' : 'password'}
+                      type={showSubscriptionKey ? 'text' : 'password'}
                       placeholder="Your subscription key"
                       className={`${fieldClass} pr-10`}
                       value={config.subscriptionKey}
@@ -187,10 +198,10 @@ export default function Setup() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowKey(!showKey)}
+                      onClick={() => setShowSubscriptionKey(!showSubscriptionKey)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showSubscriptionKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">Available in the DNA Developer Portal.</p>
